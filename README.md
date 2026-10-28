@@ -13,13 +13,13 @@
 
 ---
 
-## 📖 Descripción del Proyecto
+## Descripción del Proyecto
 
 **Griduko** es una aplicación móvil de juegos desarrollada nativamente en **Android Studio** utilizando **Kotlin** y **Jetpack Compose**. Reúne tres clásicos de cuadrícula (**Snake**, **2048** y **Tres en raya**) bajo una interfaz moderna en tonos azul marino y dorado, diseñada con transiciones fluidas, persistencia de estado en tiempo real entre vistas, efectos de sonido retro sintetizados por código y secretos ocultos (*Easter Eggs*).
 
 ---
 
-## ✨ Características Principales
+## Características Principales
 
 - **6 Pantallas Integradas**:
   1. **0 - Splash Screen**: Pantalla de bienvenida animada con barra de progreso e icono oficial.
@@ -33,12 +33,12 @@
 - **Motor de Audio Arcade Sintetizado (`SoundManager`)**:
   - Genera efectos de sonido estilo *chiptune / 8-bit* en tiempo real mediante ondas PCM (`AudioTrack`) en hilos secundarios, sin depender de archivos externos pesados, acompañado de **retroalimentación háptica**.
 - **Easter Eggs Ocultos**:
-  - 🕹️ **Código Konami en Snake**: Presionar la secuencia `▲ ▲ ▼ ▼ ◄ ► ◄ ►` en la cruceta D-Pad desbloquea el **Modo Serpiente Arcoíris**, otorga `+100 puntos` de bonificación y reproduce una fanfarria secreta.
-  - ⭐ **Secreto del Logo**: Tocar **7 veces seguidas** el logotipo de Griduko en el menú principal activa el estandarte *Modo Arcade Secreto Desbloqueado* y el borde dorado especial.
+  - **Código Konami en Snake**: Presionar la secuencia `Arriba, Arriba, Abajo, Abajo, Izquierda, Derecha, Izquierda, Derecha` en la cruceta D-Pad desbloquea el **Modo Serpiente Arcoíris**, otorga `+100 puntos` de bonificación y reproduce una fanfarria secreta.
+  - **Secreto del Logo**: Tocar **7 veces seguidas** el logotipo de Griduko en el menú principal activa el estandarte *Modo Arcade Secreto Desbloqueado* y el borde dorado especial.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 La aplicación sigue una arquitectura **Single-Activity + Unidirectional Data Flow (UDF)** basada en **Jetpack Compose** y flujos reactivos (`StateFlow`), separando claramente la interfaz de usuario, las reglas puras de los juegos, el almacenamiento persistente y la síntesis de audio.
 
@@ -84,7 +84,7 @@ flowchart TB
 
 ---
 
-## 📂 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```text
 Griduko/
@@ -133,7 +133,7 @@ Griduko/
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## Tecnologías Utilizadas
 
 | Tecnología | Uso en el Proyecto |
 | :--- | :--- |
@@ -146,7 +146,7 @@ Griduko/
 
 ---
 
-## 🚀 Instalación y Ejecución
+## Instalación y Ejecución
 
 1. **Clonar el repositorio**:
    ```bash
