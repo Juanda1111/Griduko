@@ -415,9 +415,14 @@ class GameStorage(context: Context) {
 
     // --- Persistencia de Créditos y Easter Eggs ---
     private fun loadCreditsInfo(): CreditsInfo {
+        val rawDev = prefs.getString("credits_dev", "Juan David Londoño") ?: "Juan David Londoño"
+        val rawDesign = prefs.getString("credits_design", "Juan David Londoño") ?: "Juan David Londoño"
+        val devName = if (rawDev == "Equipo Griduko") "Juan David Londoño" else rawDev
+        val designName = if (rawDesign == "Equipo Griduko") "Juan David Londoño" else rawDesign
+
         return CreditsInfo(
-            developerName = prefs.getString("credits_dev", "Equipo Griduko") ?: "Equipo Griduko",
-            designerName = prefs.getString("credits_design", "Equipo Griduko") ?: "Equipo Griduko",
+            developerName = devName,
+            designerName = designName,
             acknowledgements = prefs.getString(
                 "credits_thanks",
                 "Gracias por jugar y descubrir los secretos de Griduko"
