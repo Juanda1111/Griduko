@@ -1,14 +1,17 @@
 package com.grid.griduko.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +19,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -27,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,9 +69,89 @@ import com.grid.griduko.ui.theme.TextWhite
 import com.grid.griduko.ui.theme.TileOrange
 import com.grid.griduko.ui.theme.TilePurple
 import com.grid.griduko.ui.theme.TileRed
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.abs
+
+/**
+ * Representa una ficha en movimiento desde (fromRow, fromCol) hasta (toRow, toCol)
+ * para interpolar su desplazamiento real sobre el tablero 4x4 sin teletransportación.
+ */
+private data class SlidingTileMotion(
+    val value: Int,
+    val fromRow: Int,
+    val fromCol: Int,
+    val toRow: Int,
+    val toCol: Int
+)
+
+private fun computeSlideMotions(
+    oldBoard: List<Int>,
+    direction: SnakeDirection
+): Pair<List<SlidingTileMotion>, Set<Int>> {
+    val motions = mutableListOf<SlidingTileMotion>()
+    val mergedDestIndices = mutableSetOf<Int>()
+
+    for (lineIdx in 0..3) {
+        // Coordenadas ordenadas desde el borde hacia el cual se deslizan las fichas
+        val coords: List<Pair<Int, Int>> = when (direction) {
+            SnakeDirection.LEFT -> (0..3).map { col -> lineIdx to col }
+            SnakeDirection.RIGHT -> (3 downTo 0).map { col -> lineIdx to col }
+            SnakeDirection.UP -> (0..3).map { row -> row to lineIdx }
+            SnakeDirection.DOWN -> (3 downTo 0).map { row -> row to lineIdx }
+        }
+
+        data class NonZeroCell(val row: Int, val col: Int, val value: Int)
+
+        val nonZero = coords.mapNotNull { (r, c) ->
+            val v = oldBoard[r * 4 + c]
+            if (v != 0) NonZeroCell(r, c, v) else null
+        }
+
+        var i = 0
+        var targetSlot = 0
+        while (i < nonZero.size) {
+            val (destRow, destCol) = coords[targetSlot]
+            if (i + 1 < nonZero.size && nonZero[i].value == nonZero[i + 1].value) {
+                motions.add(
+                    SlidingTileMotion(
+                        value = nonZero[i].value,
+                        fromRow = nonZero[i].row,
+                        fromCol = nonZero[i].col,
+                        toRow = destRow,
+                        toCol = destCol
+                    )
+                )
+                motions.add(
+                    SlidingTileMotion(
+                        value = nonZero[i + 1].value,
+                        fromRow = nonZero[i + 1].row,
+                        fromCol = nonZero[i + 1].col,
+                        toRow = destRow,
+                        toCol = destCol
+                    )
+                )
+                mergedDestIndices.add(destRow * 4 + destCol)
+                i += 2
+            } else {
+                motions.add(
+                    SlidingTileMotion(
+                        value = nonZero[i].value,
+                        fromRow = nonZero[i].row,
+                        fromCol = nonZero[i].col,
+                        toRow = destRow,
+                        toCol = destCol
+                    )
+                )
+                i += 1
+            }
+            targetSlot += 1
+        }
+    }
+
+    return motions to mergedDestIndices
+}
 
 @Composable
 fun Game2048Screen(
@@ -75,6 +161,7 @@ fun Game2048Screen(
     onBack: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     val numberFormatter = remember { NumberFormat.getIntegerInstance(Locale.US) }
 
     var board by remember { mutableStateOf(initialState.board) }
@@ -83,6 +170,13 @@ fun Game2048Screen(
     var previousScore by remember { mutableIntStateOf(initialState.previousScore) }
     var highScore by remember { mutableIntStateOf(initialState.highScore) }
     var isGameOver by remember { mutableStateOf(initialState.isGameOver) }
+
+    // Estado para la animación física de deslizamiento y rebote de fusión
+    var activeMotions by remember { mutableStateOf<List<SlidingTileMotion>>(emptyList()) }
+    var isSliding by remember { mutableStateOf(false) }
+    var highlightedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    val slideProgress = remember { Animatable(1f) }
+    val popScale = remember { Animatable(1f) }
 
     fun persist(
         newBoard: List<Int> = board,
@@ -105,6 +199,7 @@ fun Game2048Screen(
     }
 
     fun startNewGame() {
+        if (isSliding) return
         var fresh = List(16) { 0 }
         fresh = GameMechanics.spawnRandomTile(fresh)
         fresh = GameMechanics.spawnRandomTile(fresh)
@@ -113,6 +208,7 @@ fun Game2048Screen(
         score = 0
         previousScore = 0
         isGameOver = false
+        highlightedIndices = emptySet()
         soundManager.playClick()
         persist(
             newBoard = fresh,
@@ -125,11 +221,13 @@ fun Game2048Screen(
     }
 
     fun undoLastMove() {
+        if (isSliding) return
         val prev = previousBoard ?: return
         board = prev
         score = previousScore
         previousBoard = null
         isGameOver = false
+        highlightedIndices = emptySet()
         soundManager.playClick()
         persist(
             newBoard = prev,
@@ -142,24 +240,22 @@ fun Game2048Screen(
     }
 
     fun handleSwipe(direction: SnakeDirection) {
-        if (isGameOver) return
+        if (isGameOver || isSliding) return
         val result = GameMechanics.move2048(board, direction)
         if (!result.moved) return
 
         val savedPrevBoard = board
         val savedPrevScore = score
+        val (motions, mergedCells) = computeSlideMotions(savedPrevBoard, direction)
 
         val withNewTile = GameMechanics.spawnRandomTile(result.newBoard)
+        val spawnedIndex = withNewTile.indices.firstOrNull {
+            result.newBoard[it] == 0 && withNewTile[it] != 0
+        }
+
         val updatedScore = score + result.pointsEarned
         val updatedHigh = maxOf(highScore, updatedScore)
         val gameOverNow = !GameMechanics.canMove2048(withNewTile)
-
-        board = withNewTile
-        previousBoard = savedPrevBoard
-        score = updatedScore
-        previousScore = savedPrevScore
-        highScore = updatedHigh
-        isGameOver = gameOverNow
 
         if (result.maxMergedTile >= 2048) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -171,18 +267,53 @@ fun Game2048Screen(
             soundManager.playMove()
         }
 
-        if (gameOverNow) {
-            soundManager.playGameOver()
-        }
+        scope.launch {
+            // Fase 1: Deslizar suavemente todas las fichas desde su origen hasta su destino
+            activeMotions = motions
+            isSliding = true
+            slideProgress.snapTo(0f)
+            slideProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 135, easing = FastOutSlowInEasing)
+            )
 
-        persist(
-            newBoard = withNewTile,
-            newPrevBoard = savedPrevBoard,
-            newScore = updatedScore,
-            newPrevScore = savedPrevScore,
-            newHighScore = updatedHigh,
-            newGameOver = gameOverNow
-        )
+            // Fase 2: Actualizar tablero final y animar el "pop" de las fichas fusionadas / nuevas
+            board = withNewTile
+            previousBoard = savedPrevBoard
+            score = updatedScore
+            previousScore = savedPrevScore
+            highScore = updatedHigh
+            isGameOver = gameOverNow
+            isSliding = false
+            activeMotions = emptyList()
+
+            val popSet = mergedCells.toMutableSet()
+            if (spawnedIndex != null) popSet.add(spawnedIndex)
+            highlightedIndices = popSet
+
+            if (gameOverNow) {
+                soundManager.playGameOver()
+            }
+
+            persist(
+                newBoard = withNewTile,
+                newPrevBoard = savedPrevBoard,
+                newScore = updatedScore,
+                newPrevScore = savedPrevScore,
+                newHighScore = updatedHigh,
+                newGameOver = gameOverNow
+            )
+
+            popScale.snapTo(1.14f)
+            popScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+            highlightedIndices = emptySet()
+        }
     }
 
     Column(
@@ -231,8 +362,8 @@ fun Game2048Screen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Tablero 4x4 de 2048
-            Box(
+            // Tablero 4x4 de 2048 con animación de deslizamiento real por coordenadas
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
@@ -240,7 +371,7 @@ fun Game2048Screen(
                     .clip(RoundedCornerShape(22.dp))
                     .background(NavyBoardBackground)
                     .border(1.5.dp, NavyBorder, RoundedCornerShape(22.dp))
-                    .pointerInput(board, isGameOver) {
+                    .pointerInput(board, isGameOver, isSliding) {
                         var dragX = 0f
                         var dragY = 0f
                         detectDragGestures(
@@ -267,27 +398,56 @@ fun Game2048Screen(
                             }
                         )
                     }
-                    .padding(12.dp),
-                contentAlignment = Alignment.Center
+                    .padding(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    for (row in 0..3) {
-                        Row(
+                val gridSpacing = 10.dp
+                val cellSize = (maxWidth - gridSpacing * 3) / 4f
+                val stepSize = cellSize + gridSpacing
+
+                // 1. Fondo fijo de 16 casillas vacías
+                for (row in 0..3) {
+                    for (col in 0..3) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            for (col in 0..3) {
-                                val value = board[row * 4 + col]
-                                Tile2048Cell(
+                                .size(cellSize)
+                                .offset(x = stepSize * col, y = stepSize * row)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(NavySurface)
+                        )
+                    }
+                }
+
+                // 2. Capa de fichas activas (deslizándose durante el swipe o estáticas tras terminar)
+                if (isSliding && activeMotions.isNotEmpty()) {
+                    val progress = slideProgress.value
+                    activeMotions.forEach { motion ->
+                        val currentCol = motion.fromCol + (motion.toCol - motion.fromCol) * progress
+                        val currentRow = motion.fromRow + (motion.toRow - motion.fromRow) * progress
+
+                        Tile2048Visual(
+                            value = motion.value,
+                            scaleFactor = 1f,
+                            modifier = Modifier
+                                .size(cellSize)
+                                .offset(
+                                    x = stepSize * currentCol,
+                                    y = stepSize * currentRow
+                                )
+                        )
+                    }
+                } else {
+                    for (row in 0..3) {
+                        for (col in 0..3) {
+                            val idx = row * 4 + col
+                            val value = board[idx]
+                            if (value > 0) {
+                                val tileScale = if (idx in highlightedIndices) popScale.value else 1f
+                                Tile2048Visual(
                                     value = value,
+                                    scaleFactor = tileScale,
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxSize()
+                                        .size(cellSize)
+                                        .offset(x = stepSize * col, y = stepSize * row)
                                 )
                             }
                         }
@@ -361,7 +521,7 @@ fun Game2048Screen(
 
                 OutlinedButton(
                     onClick = { undoLastMove() },
-                    enabled = previousBoard != null,
+                    enabled = previousBoard != null && !isSliding,
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
@@ -397,21 +557,12 @@ fun Game2048Screen(
 }
 
 @Composable
-private fun Tile2048Cell(
+private fun Tile2048Visual(
     value: Int,
+    scaleFactor: Float,
     modifier: Modifier = Modifier
 ) {
-    val scale by animateFloatAsState(
-        targetValue = if (value > 0) 1f else 0.96f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "tile_scale"
-    )
-
     val (bgColor, textColor) = when (value) {
-        0 -> NavySurface to Color.Transparent
         2 -> LightWhiteTile to TextDarkNavy
         4 -> SoftBlueTile to TextDarkNavy
         8 -> AccentYellow to TextDarkNavy
@@ -433,18 +584,16 @@ private fun Tile2048Cell(
 
     Box(
         modifier = modifier
-            .scale(scale)
+            .scale(scaleFactor)
             .clip(RoundedCornerShape(14.dp))
             .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
-        if (value > 0) {
-            Text(
-                text = value.toString(),
-                color = textColor,
-                fontSize = fontSize,
-                fontWeight = FontWeight.ExtraBold
-            )
-        }
+        Text(
+            text = value.toString(),
+            color = textColor,
+            fontSize = fontSize,
+            fontWeight = FontWeight.ExtraBold
+        )
     }
 }
