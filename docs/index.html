@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - Griduko</title>
+    <style>
+        :root {
+            --bg-navy: #071A47;
+            --card-navy: #102A6B;
+            --border-navy: #23479B;
+            --accent-yellow: #EBC844;
+            --text-white: #F8FAFC;
+            --text-muted: #A7BFEA;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-navy);
+            color: var(--text-white);
+            line-height: 1.65;
+            padding: 32px 16px;
+        }
+        .container {
+            max-width: 780px;
+            margin: 0 auto;
+            background-color: var(--card-navy);
+            border: 1px solid var(--border-navy);
+            border-radius: 20px;
+            padding: 36px 28px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+        }
+        h1 {
+            color: var(--accent-yellow);
+            font-size: 1.9rem;
+            margin-bottom: 8px;
+        }
+        .meta {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-navy);
+        }
+        h2 {
+            color: var(--accent-yellow);
+            font-size: 1.2rem;
+            margin-top: 24px;
+            margin-bottom: 10px;
+        }
+        p, ul {
+            margin-bottom: 14px;
+            color: var(--text-white);
+        }
+        ul {
+            padding-left: 22px;
+        }
+        li {
+            margin-bottom: 6px;
+        }
+        code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        .footer {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-navy);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>Política de Privacidad de Griduko</h1>
+        <p class="meta">
+            <strong>Fecha de entrada en vigor:</strong> 28 de octubre de 2026<br>
+            <strong>Aplicación:</strong> Griduko (<code>com.grid.griduko</code>)
+        </p>
+
+        <h2>1. Información General</h2>
+        <p>
+            <strong>Griduko</strong> es una aplicación móvil de entretenimiento que ofrece tres juegos clásicos de cuadrícula (<strong>Snake</strong>, <strong>2048</strong> y <strong>Tres en raya</strong>). Respetamos profundamente la privacidad de todos nuestros usuarios y hemos diseñado la aplicación para que funcione de manera completamente local y autónoma en el dispositivo.
+        </p>
+
+        <h2>2. Recopilación y Uso de Datos Personales</h2>
+        <p>
+            <strong>Griduko NO recopila, transmite, almacena en servidores externos ni comparte ningún tipo de información personal o sensible del usuario.</strong>
+        </p>
+        <ul>
+            <li><strong>No solicita registro de cuenta</strong>, nombre de usuario, correo electrónico ni contraseña.</li>
+            <li><strong>No accede a permisos sensibles del dispositivo</strong> (ubicación, cámara, micrófono, contactos, galería ni archivos personales).</li>
+            <li><strong>No utiliza herramientas de rastreo analítico de terceros</strong> ni identificadores de publicidad (<code>AD_ID</code>).</li>
+            <li><strong>No muestra anuncios publicitarios</strong> ni incluye compras integradas (<em>in-app purchases</em>).</li>
+        </ul>
+
+        <h2>3. Almacenamiento Local en el Dispositivo</h2>
+        <p>
+            Para ofrecer una buena experiencia de juego, <strong>Griduko</strong> guarda únicamente en la memoria interna del propio dispositivo (mediante <code>SharedPreferences</code> de Android):
+        </p>
+        <ul>
+            <li>Los puntajes máximos (récords) obtenidos en <strong>Snake</strong>, <strong>2048</strong> y <strong>Tres en raya</strong>.</li>
+            <li>El estado de la partida en curso para que el jugador pueda retomar su juego al cambiar de vista.</li>
+            <li>Los textos opcionales que el usuario decida personalizar localmente en la pantalla de Créditos.</li>
+        </ul>
+        <p>
+            Estos datos nunca salen del dispositivo del usuario y se eliminan por completo de forma automática si el usuario borra los datos de la aplicación o desinstala <strong>Griduko</strong>.
+        </p>
+
+        <h2>4. Privacidad de los Menores</h2>
+        <p>
+            Debido a que <strong>Griduko</strong> no recopila ningún dato personal ni incluye contenido inapropiado, es segura para usuarios de todas las edades y cumple con las normativas aplicables de protección de datos y privacidad infantil.
+        </p>
+
+        <h2>5. Cambios en esta Política de Privacidad</h2>
+        <p>
+            En caso de que futuras versiones de <strong>Griduko</strong> incorporen nuevas funcionalidades que modifiquen el tratamiento de la información, esta Política de Privacidad será actualizada en esta misma página indicando la nueva fecha de entrada en vigor.
+        </p>
+
+        <h2>6. Contacto</h2>
+        <p>
+            Si tienes alguna pregunta o inquietud acerca de esta Política de Privacidad o sobre la aplicación <strong>Griduko</strong>, puedes comunicarte a través del repositorio oficial del proyecto en GitHub o al correo electrónico de soporte registrado en la ficha de Google Play Store.
+        </p>
+
+        <div class="footer">
+            Griduko v1.0 &middot; Snake &middot; 2048 &middot; Tres en raya
+        </div>
+    </main>
+</body>
+</html>

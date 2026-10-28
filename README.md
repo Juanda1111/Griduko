@@ -150,7 +150,7 @@ Griduko/
 
 1. **Clonar el repositorio**:
    ```bash
-   git clone https://github.com/tu-usuario/Griduko.git
+   git clone https://github.com/Juanda1111/Griduko.git
    cd Griduko
    ```
 2. **Abrir en Android Studio**:
