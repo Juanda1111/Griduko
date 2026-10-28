@@ -44,7 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -67,6 +67,7 @@ import com.grid.griduko.ui.theme.NavyBoardBackground
 import com.grid.griduko.ui.theme.NavyBorder
 import com.grid.griduko.ui.theme.NavySubtleGrid
 import com.grid.griduko.ui.theme.NavySurface
+import com.grid.griduko.ui.theme.NavySurfaceLight
 import com.grid.griduko.ui.theme.SnakeGreen
 import com.grid.griduko.ui.theme.SnakeGreenDark
 import com.grid.griduko.ui.theme.TextDarkNavy
@@ -100,14 +101,29 @@ fun SnakeScreen(
 ) {
     val haptic = LocalHapticFeedback.current
 
-    var snake by remember { mutableStateOf(initialState.snake) }
-    var food by remember { mutableStateOf(initialState.food) }
-    var direction by remember { mutableStateOf(initialState.direction) }
-    var nextDirection by remember { mutableStateOf(initialState.direction) }
-    var score by remember { mutableIntStateOf(initialState.score) }
+    // Si la partida guardada terminó con 0 puntos (por el arranque automático anterior),
+    // la preparamos limpia para que el jugador pueda iniciar cómodamente.
+    val startClean = initialState.isGameOver && initialState.score == 0
+
+    var snake by remember {
+        mutableStateOf(if (startClean) storage.defaultSnakePoints() else initialState.snake)
+    }
+    var food by remember {
+        mutableStateOf(if (startClean) GridPoint(11, 4) else initialState.food)
+    }
+    var direction by remember {
+        mutableStateOf(if (startClean) SnakeDirection.RIGHT else initialState.direction)
+    }
+    var nextDirection by remember {
+        mutableStateOf(if (startClean) SnakeDirection.RIGHT else initialState.direction)
+    }
+    var score by remember { mutableIntStateOf(if (startClean) 0 else initialState.score) }
     var highScore by remember { mutableIntStateOf(initialState.highScore) }
+
+    // Al entrar a la pantalla, la serpiente espera el primer movimiento del jugador
+    var waitingToStart by remember { mutableStateOf(true) }
     var isPaused by remember { mutableStateOf(false) }
-    var isGameOver by remember { mutableStateOf(initialState.isGameOver) }
+    var isGameOver by remember { mutableStateOf(if (startClean) false else initialState.isGameOver) }
     var rainbowMode by remember { mutableStateOf(initialState.rainbowModeUnlocked) }
     var konamiBannerVisible by remember { mutableStateOf(false) }
 
@@ -154,7 +170,8 @@ fun SnakeScreen(
         score = 0
         isGameOver = false
         isPaused = false
-        persistCurrentState(pausedOverride = false)
+        waitingToStart = true
+        persistCurrentState(pausedOverride = true)
     }
 
     fun handleDirectionInput(newDir: SnakeDirection) {
@@ -175,6 +192,18 @@ fun SnakeScreen(
         }
 
         if (isGameOver) return
+
+        if (waitingToStart) {
+            waitingToStart = false
+            isPaused = false
+            if (!newDir.isOpposite(direction)) {
+                direction = newDir
+                nextDirection = newDir
+            }
+            soundManager.playMove()
+            return
+        }
+
         if (isPaused) {
             isPaused = false
         }
@@ -184,17 +213,16 @@ fun SnakeScreen(
         }
     }
 
-    // Game Loop de Snake
-    LaunchedEffect(isPaused, isGameOver, rainbowMode) {
-        while (!isPaused && !isGameOver) {
-            val speedMs = (185L - (score / 40) * 8L).coerceAtLeast(85L)
+    // Game Loop de Snake: solo avanza cuando el jugador ya inició (waitingToStart == false)
+    LaunchedEffect(waitingToStart, isPaused, isGameOver, rainbowMode) {
+        while (!waitingToStart && !isPaused && !isGameOver) {
+            val speedMs = (195L - (score / 40) * 8L).coerceAtLeast(90L)
             delay(speedMs)
 
             direction = nextDirection
             val head = snake.first()
             val newHead = GridPoint(head.x + direction.dx, head.y + direction.dy)
 
-            // Verificar colisión con bordes o con su propio cuerpo
             val hitWall = newHead.x !in 0 until GRID_SIZE || newHead.y !in 0 until GRID_SIZE
             val hitSelf = newHead in snake.dropLast(1)
 
@@ -249,14 +277,19 @@ fun SnakeScreen(
                     persistCurrentState(pausedOverride = true)
                     onBack()
                 },
-                rightActionSymbol = if (isPaused) "▶" else "||",
+                rightActionSymbol = if (isPaused || waitingToStart) "▶" else "||",
                 onRightActionClick = {
                     soundManager.playClick()
-                    if (isGameOver) {
-                        restartGame()
-                    } else {
-                        isPaused = !isPaused
-                        persistCurrentState()
+                    when {
+                        isGameOver -> restartGame()
+                        waitingToStart -> {
+                            waitingToStart = false
+                            isPaused = false
+                        }
+                        else -> {
+                            isPaused = !isPaused
+                            persistCurrentState()
+                        }
                     }
                 }
             )
@@ -311,7 +344,7 @@ fun SnakeScreen(
                         color = if (rainbowMode) AccentYellow else SnakeGreen,
                         shape = RoundedCornerShape(20.dp)
                     )
-                    .pointerInput(direction, isPaused, isGameOver) {
+                    .pointerInput(direction, waitingToStart, isPaused, isGameOver) {
                         var accumulatedX = 0f
                         var accumulatedY = 0f
                         detectDragGestures(
@@ -418,8 +451,38 @@ fun SnakeScreen(
                     }
                 }
 
-                // Overlay de Pausa o Game Over
-                if (isGameOver || isPaused) {
+                // Cartel flotante superior cuando espera el primer movimiento del jugador
+                if (waitingToStart && !isGameOver) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(NavySurfaceLight.copy(alpha = 0.94f))
+                            .border(1.dp, AccentYellow, RoundedCornerShape(50))
+                            .clickable {
+                                soundManager.playClick()
+                                waitingToStart = false
+                                isPaused = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = if (score > 0) {
+                                "Partida guardada · Presiona una flecha para continuar"
+                            } else {
+                                "¿Listo? Presiona una flecha o desliza para empezar"
+                            },
+                            color = AccentYellow,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                // Overlay de Pausa manual o Game Over
+                if (isGameOver || (isPaused && !waitingToStart)) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -471,13 +534,13 @@ fun SnakeScreen(
             }
         }
 
-        // Cruceta direccional (D-Pad) fiel al wireframe
+        // Cruceta direccional (D-Pad) con iconos vectoriales centrados
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top = 8.dp)
         ) {
             DPadButton(
-                symbol = "▲",
+                direction = SnakeDirection.UP,
                 onClick = { handleDirectionInput(SnakeDirection.UP) }
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -486,18 +549,18 @@ fun SnakeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 DPadButton(
-                    symbol = "◄",
+                    direction = SnakeDirection.LEFT,
                     onClick = { handleDirectionInput(SnakeDirection.LEFT) }
                 )
                 Spacer(modifier = Modifier.width(48.dp))
                 DPadButton(
-                    symbol = "►",
+                    direction = SnakeDirection.RIGHT,
                     onClick = { handleDirectionInput(SnakeDirection.RIGHT) }
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
             DPadButton(
-                symbol = "▼",
+                direction = SnakeDirection.DOWN,
                 onClick = { handleDirectionInput(SnakeDirection.DOWN) }
             )
         }
@@ -514,7 +577,7 @@ fun SnakeScreen(
 
 @Composable
 private fun DPadButton(
-    symbol: String,
+    direction: SnakeDirection,
     onClick: () -> Unit
 ) {
     Box(
@@ -526,11 +589,38 @@ private fun DPadButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = symbol,
-            color = AccentYellow,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        Canvas(modifier = Modifier.size(16.dp)) {
+            val w = size.width
+            val h = size.height
+            val path = Path().apply {
+                when (direction) {
+                    SnakeDirection.UP -> {
+                        moveTo(w * 0.50f, h * 0.18f)
+                        lineTo(w * 0.86f, h * 0.80f)
+                        lineTo(w * 0.14f, h * 0.80f)
+                        close()
+                    }
+                    SnakeDirection.DOWN -> {
+                        moveTo(w * 0.14f, h * 0.20f)
+                        lineTo(w * 0.86f, h * 0.20f)
+                        lineTo(w * 0.50f, h * 0.82f)
+                        close()
+                    }
+                    SnakeDirection.LEFT -> {
+                        moveTo(w * 0.18f, h * 0.50f)
+                        lineTo(w * 0.80f, h * 0.14f)
+                        lineTo(w * 0.80f, h * 0.86f)
+                        close()
+                    }
+                    SnakeDirection.RIGHT -> {
+                        moveTo(w * 0.82f, h * 0.50f)
+                        lineTo(w * 0.20f, h * 0.14f)
+                        lineTo(w * 0.20f, h * 0.86f)
+                        close()
+                    }
+                }
+            }
+            drawPath(path = path, color = AccentYellow)
+        }
     }
 }

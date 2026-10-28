@@ -253,13 +253,12 @@ class GameStorage(context: Context) {
 
     // --- Persistencia de Snake ---
     fun defaultSnakePoints(): List<GridPoint> = listOf(
-        GridPoint(8, 7),
-        GridPoint(7, 7),
         GridPoint(6, 7),
-        GridPoint(6, 8),
-        GridPoint(6, 9),
-        GridPoint(5, 9),
-        GridPoint(4, 9)
+        GridPoint(5, 7),
+        GridPoint(4, 7),
+        GridPoint(4, 8),
+        GridPoint(3, 8),
+        GridPoint(2, 8)
     )
 
     private fun loadSnakeState(): SnakeSavedState {
