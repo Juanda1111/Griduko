@@ -67,6 +67,7 @@ fun CreditsScreen(
         ) {
             GridukoTopBar(
                 title = "Créditos",
+                showLogo = false,
                 onBackClick = {
                     soundManager.playClick()
                     onBackToHome()
@@ -197,7 +198,7 @@ fun CreditsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val trimmed = editingValue.trim().ifEmpty { "Tu nombre" }
+                        val trimmed = editingValue.trim().ifEmpty { "Juan David Londoño" }
                         val updated = when (editingField) {
                             "DESARROLLO" -> creditsInfo.copy(developerName = trimmed)
                             "DISEÑO" -> creditsInfo.copy(designerName = trimmed)

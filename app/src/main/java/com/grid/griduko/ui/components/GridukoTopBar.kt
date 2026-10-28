@@ -18,16 +18,17 @@ import com.grid.griduko.ui.theme.TextWhite
 
 /**
  * Barra superior común para las pantallas de juego y créditos:
- * - Botón atrás circular a la izquierda
- * - Logo de la app siempre visible a la izquierda del título central
- * - Botón de acción (pausa/reiniciar) a la derecha
+ * - Botón atrás circular (40.dp) a la izquierda
+ * - Logo de la app (40.dp, opcional según pantalla) a la izquierda del título central (24.sp)
+ * - Botón de acción (pausa/reiniciar, 40.dp) a la derecha
  */
 @Composable
 fun GridukoTopBar(
     title: String,
     onBackClick: () -> Unit,
     rightActionSymbol: String? = null,
-    onRightActionClick: (() -> Unit)? = null
+    onRightActionClick: (() -> Unit)? = null,
+    showLogo: Boolean = true
 ) {
     Row(
         modifier = Modifier
@@ -45,16 +46,18 @@ fun GridukoTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            GridukoLogo(
-                size = 30.dp,
-                animatePulse = false
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+            if (showLogo) {
+                GridukoLogo(
+                    size = 40.dp,
+                    animatePulse = false
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+            }
             Text(
                 text = title,
                 color = TextWhite,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold
             )
         }
 
